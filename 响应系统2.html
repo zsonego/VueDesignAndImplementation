@@ -13,12 +13,12 @@
       let bucket = new WeakMap();
       let activeEffect;
       function effect(fn) {
-        function wrapper() {
+        function effectFn() {
           activeEffect = fn;
           fn();
           activeEffect = null;
         }
-        wrapper();
+        effectFn();
       }
 
       function ref(data) {

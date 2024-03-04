@@ -13,12 +13,22 @@
       let bucket = new WeakMap();
       let activeEffect;
       function effect(fn) {
-        function wrapper() {
-          activeEffect = fn;
+        function effectFn() {
+          // 清除之前的依赖
+          cleanup(effectFn);
+          activeEffect = effectFn;
           fn();
-          activeEffect = null;
         }
-        wrapper();
+        effectFn.deps = [];
+        effectFn();
+      }
+
+      function cleanup(effectFn) {
+        for (let i = 0; i < effectFn.deps.length; i++) {
+          const deps = effectFn.deps[i];
+          deps.delete(effectFn);
+        }
+        effectFn.deps.length = 0;
       }
 
       function ref(data) {
@@ -46,6 +56,7 @@
           depsMap.set(key, (deps = new Set()));
         }
         deps.add(activeEffect);
+        activeEffect.deps.push(deps);
       }
       // 抽离触发函数
       function trigger(target, key) {
