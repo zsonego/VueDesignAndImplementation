@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>demo</title>
+  </head>
+
+  <body>
+    <script>
+      let data = {
+        name: '张三',
+      };
+      // 存储副作用函数的桶
+      const bucket = new Set();
+      let obj = new Proxy(data, {
+        get(target, key) {
+          // 收集依赖
+          bucket.add(effect);
+          return target[key];
+        },
+        set(target, key, newVal) {
+          target[key] = newVal;
+          // 触发副作用函数重新执行
+          bucket.forEach((fn) => fn());
+          return true;
+        },
+      });
+      function effect() {
+        console.log('effect run', obj.name);
+      }
+      effect();
+      setTimeout(() => {
+        obj.name = '李四';
+      }, 2000);
+    </script>
+  </body>
+</html>
