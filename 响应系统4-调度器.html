@@ -11,14 +11,20 @@
     <div id="app"></div>
     <script>
       let bucket = new WeakMap();
+      // 添加为栈结构  才能支持effect嵌套
+      const effectStack = [];
       let activeEffect;
-      function effect(fn) {
-        function effectFn() {
+      function effect(fn, options) {
+        const effectFn = () => {
           // 清除之前的依赖
           cleanup(effectFn);
           activeEffect = effectFn;
+          effectStack.push(effectFn);
           fn();
-        }
+          effectStack.pop();
+          activeEffect = effectStack[effectStack.length - 1];
+        };
+        effectFn.options = options;
         effectFn.deps = [];
         effectFn();
       }
@@ -63,8 +69,20 @@
         const depsMap = bucket.get(target);
         if (depsMap) {
           const effects = depsMap.get(key);
-          const effectsToRun = new Set(effects);
-          effectsToRun && effectsToRun.forEach((effectFn) => effectFn());
+          const effectsToRun = new Set();
+          effects &&
+            effects.forEach((effectFn) => {
+              if (effectFn !== activeEffect) {
+                effectsToRun.add(effectFn);
+              }
+            });
+          effectsToRun.forEach((effectFn) => {
+            if (effectFn.options.scheduler) {
+              effectFn.options.scheduler(effectFn);
+            } else {
+              effectFn();
+            }
+          });
         }
       }
 
@@ -72,10 +90,18 @@
         name: '张三',
       };
       let obj = ref(data);
-      effect(() => {
-        console.log(obj);
-        document.querySelector('#app').innerHTML = obj.name;
-      });
+      effect(
+        () => {
+          console.log(obj);
+          document.querySelector('#app').innerHTML = obj.name;
+        },
+        {
+          scheduler(fn) {
+            console.log('hello');
+            fn();
+          },
+        }
+      );
       setTimeout(() => {
         obj.name = '李四';
       }, 2000);

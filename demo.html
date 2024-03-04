@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>demo</title>
+  </head>
+  <body>
+    <script>
+      // let temp = new Set([1]);
+
+      // temp.forEach((item) => {
+      //   temp.delete(1);
+      //   temp.add(1);
+      //   console.log('遍历中。。。');
+      // });
+
+      const jobQueue = new Set();
+      const p = Promise.resolve();
+      let isFlushing = false;
+
+      function flushJob() {
+        if (isFlushing) return;
+        isFlushing = true;
+        p.then(() => {
+          jobQueue.forEach((job) => job());
+        }).finally(() => {
+          isFlushing = false;
+        });
+      }
+
+      let number = 1;
+      let fn = () => {
+        console.log(number);
+      };
+      jobQueue.add(fn);
+      number++;
+      flushJob();
+      jobQueue.add(fn);
+      number++;
+      flushJob();
+      jobQueue.add(fn);
+      number++;
+      flushJob();
+    </script>
+  </body>
+</html>
