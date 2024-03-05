@@ -91,7 +91,7 @@
       }
 
       // 侦听器
-      function watch(source, cb) {
+      function watch(source, cb, options = {}) {
         let getter;
         if (typeof source === 'function') {
           getter = source;
@@ -100,15 +100,39 @@
         }
 
         let oldValue, newValue;
+
+        let cleanup;
+        function onInvalidate(fn) {
+          cleanup = fn;
+        }
+
+        const job = () => {
+          newValue = effectFn();
+          if (cleanup) {
+            cleanup();
+          }
+          cb(newValue, oldValue, onInvalidate);
+          oldValue = newValue;
+        };
+
         const effectFn = effect(() => getter(), {
           lazy: true,
           scheduler() {
-            newValue = effectFn();
-            cb(newValue, oldValue);
-            oldValue = newValue;
+            // 如果flush值为post 放入微任务中执行
+            // 放入微任务的目的是等DOM更新后再执行
+            if (options.flush === 'post') {
+              const p = Promise.resolve();
+              p.then(job);
+            } else {
+              job();
+            }
           },
         });
-        oldValue = effectFn();
+        if (options.immediate) {
+          job();
+        } else {
+          oldValue = effectFn();
+        }
       }
 
       function traverse(value, seen = new Set()) {
@@ -126,8 +150,15 @@
       });
       watch(
         () => obj.foo,
-        (newValue, oldValue) => {
+        (newValue, oldValue, onInvalidate) => {
+          onInvalidate(() => {
+            console.log('hello');
+          });
           console.log(newValue, oldValue);
+        },
+        {
+          immediate: false, // 指定是否立即执行
+          flush: 'pre', // 指定回调函数的调用时机 'pre' | 'post' | 'sync
         }
       );
 

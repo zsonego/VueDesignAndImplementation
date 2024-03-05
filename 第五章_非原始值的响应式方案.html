@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <script>
+      // 代理函数
+      //   function demo(name) {
+      //     console.log('我是', name);
+      //   }
+      //   const wrapperDemo = new Proxy(demo, {
+      //     apply(target, thisArg, argArray) {
+      //       target.call(thisArg, ...argArray);
+      //     },
+      //   });
+      //   wrapperDemo('张三');
+
+      const dinner = {
+        meal: 'tacos',
+      };
+      const handler = {
+        get(target, property, receiver) {
+          return Reflect.get(...arguments);
+        },
+      };
+      const proxy = new Proxy(dinner, handler);
+      console.log(proxy.meal);
+    </script>
+  </body>
+</html>
