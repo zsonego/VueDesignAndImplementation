@@ -90,41 +90,44 @@
         }
       }
 
+      // 计算属性
+      function computed(getter) {
+        // 用于返回上次计算的值
+        let value;
+        // true表示脏值  需要重新运行effectFn计算
+        let dirty = true;
+        const effectFn = effect(getter, {
+          scheduler() {
+            dirty = true;
+            trigger(obj, 'value');
+          },
+          lazy: true,
+        });
+        const obj = {
+          get value() {
+            if (dirty) {
+              value = effectFn();
+              // 将脏值标志设置成false
+              dirty = false;
+            }
+            track(obj, 'value');
+            return value;
+          },
+        };
+        return obj;
+      }
+
       let data = {
-        name: '张三',
         a: 10,
         b: 20,
       };
       let obj = ref(data);
 
-      const effectFn = effect(
-        () => {
-          return obj.a + obj.b;
-        },
-        {
-          lazy: true,
-        }
-      );
-      console.log(effectFn(), '>>>>>>>>>>'); // 懒执行
-
-      effect(
-        () => {
-          console.log(obj);
-          document.querySelector('#app').innerHTML = obj.name;
-        },
-        {
-          // 调度器
-          // scheduler(fn) {
-          //   console.log('hello');
-          //   fn();
-          // },
-          // 懒执行
-          // lazy: true,
-        }
-      );
-      setTimeout(() => {
-        obj.name = '李四';
-      }, 2000);
+      const result = computed(() => {
+        return obj.a + obj.b;
+      });
+      console.log(result.value);
+      console.log(result.value);
     </script>
   </body>
 </html>

@@ -90,41 +90,48 @@
         }
       }
 
-      let data = {
-        name: '张三',
-        a: 10,
-        b: 20,
-      };
-      let obj = ref(data);
+      // 侦听器
+      function watch(source, cb) {
+        let getter;
+        if (typeof source === 'function') {
+          getter = source;
+        } else {
+          getter = () => traverse(source);
+        }
 
-      const effectFn = effect(
-        () => {
-          return obj.a + obj.b;
-        },
-        {
+        let oldValue, newValue;
+        const effectFn = effect(() => getter(), {
           lazy: true,
-        }
-      );
-      console.log(effectFn(), '>>>>>>>>>>'); // 懒执行
+          scheduler() {
+            newValue = effectFn();
+            cb(newValue, oldValue);
+            oldValue = newValue;
+          },
+        });
+        oldValue = effectFn();
+      }
 
-      effect(
-        () => {
-          console.log(obj);
-          document.querySelector('#app').innerHTML = obj.name;
-        },
-        {
-          // 调度器
-          // scheduler(fn) {
-          //   console.log('hello');
-          //   fn();
-          // },
-          // 懒执行
-          // lazy: true,
+      function traverse(value, seen = new Set()) {
+        if (typeof value !== 'object' || value === null || seen.has(value))
+          return;
+        seen.add(value);
+        for (const k in value) {
+          traverse(value[k], seen);
+        }
+        return value;
+      }
+
+      let obj = ref({
+        foo: 1,
+      });
+      watch(
+        () => obj.foo,
+        (newValue, oldValue) => {
+          console.log(newValue, oldValue);
         }
       );
-      setTimeout(() => {
-        obj.name = '李四';
-      }, 2000);
+
+      obj.foo++;
     </script>
   </body>
 </html>
