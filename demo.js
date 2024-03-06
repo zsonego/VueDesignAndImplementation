@@ -34,8 +34,17 @@
 // };
 // Reflect.get(temp, 'demo', { name: 'tom' });
 
-const obj = {
-  foo: 1,
+// const obj = {
+//   foo: 1,
+// };
+// const p = new Proxy(obj, {});
+// console.log(p.foo);
+
+function demo() {
+  console.log(this.name);
+}
+let obj = {
+  name: '张三',
 };
-const p = new Proxy(obj, {});
-console.log(p.foo);
+const wrapperDemo = demo.bind(obj);
+wrapperDemo();
