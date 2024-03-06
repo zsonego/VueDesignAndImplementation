@@ -26,10 +26,16 @@
 // number++;
 // flushJob();
 
-const temp = {
-  name: '123',
-  get demo() {
-    console.log(this.name);
-  },
+// const temp = {
+//   name: '123',
+//   get demo() {
+//     console.log(this.name);
+//   },
+// };
+// Reflect.get(temp, 'demo', { name: 'tom' });
+
+const obj = {
+  foo: 1,
 };
-Reflect.get(temp, 'demo', { name: 'tom' });
+const p = new Proxy(obj, {});
+console.log(p.foo);
