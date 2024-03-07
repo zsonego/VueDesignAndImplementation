@@ -11,6 +11,9 @@
     <div id="app"></div>
     <script>
       const { effect, ref } = VueReactivity;
+      const Text = Symbol();
+      const Comment = Symbol();
+      const Fragment = Symbol();
 
       function shouldSetAsProps(el, key, value) {
         if (key === 'form' && el.tagName === 'INPUT') return false;
@@ -18,6 +21,10 @@
       }
       // 封装的卸载函数
       function unmount(vnode) {
+        if (vnode.type === Fragment) {
+          vnode.children.forEach((c) => unmount(c));
+          return;
+        }
         // 拿到父节点 调用删除
         let parent = vnode.el.parentNode;
         if (parent) {
@@ -26,7 +33,14 @@
       }
 
       function createRenderer(options) {
-        const { createElement, insert, setElementText, patchProps } = options;
+        const {
+          createElement,
+          insert,
+          setElementText,
+          patchProps,
+          setText,
+          createText,
+        } = options;
 
         // vnode 虚拟dom  container 容器
         // 挂载虚拟dom的方法
@@ -114,10 +128,27 @@
               // 更新 打补丁
               patchElement(oldVnode, newVnode);
             }
-          } else if (typeof type === 'object') {
-            // 组件
-          } else {
-            // 其他类型
+          } else if (type === Text) {
+            // 文本节点
+            if (!oldVnode) {
+              // 如果没有旧的vnode将执行初次挂载
+              const el = (newVnode.el = createText(newVnode.children));
+              insert(el.container);
+            } else {
+              // 如果旧vnode存在 只需要使用新文本节点的文本内容更新旧文本节点
+              const el = (newVnode.el = oldVnode.el);
+              if (newVnode.children !== oldVnode.children) {
+                setText(el, newVnode.children);
+              }
+            }
+          } else if (type === Fragment) {
+            if (!oldVnode) {
+              // 旧vnode不存在 需要将Fragment的子节点依次挂载到容器中
+              newVnode.children.forEach((c) => patch(null, c, container));
+            } else {
+              // 旧vnode存在
+              patchChildren(oldVnode, newVnode, container);
+            }
           }
         }
         // vnode 虚拟dom
@@ -222,6 +253,12 @@
           } else {
             el.setAttribute(key, nextValue);
           }
+        },
+        setText(el, text) {
+          el.nodeValue = text;
+        },
+        createText(text) {
+          return document.createTextNode(text);
         },
       });
       renderer.render(vnode, document.querySelector('#app'));
