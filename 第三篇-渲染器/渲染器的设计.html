@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <script src="https://unpkg.com/@vue/reactivity@3.0.5/dist/reactivity.global
+.js"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      const { effect, ref } = VueReactivity;
+
+      function shouldSetAsProps(el, key, value) {
+        if (key === 'form' && el.tagName === 'INPUT') return false;
+        return key in el;
+      }
+
+      function createRenderer(options) {
+        const { createElement, insert, setElementText, patchProps } = options;
+
+        function mountElement(vnode, container) {
+          const el = createElement(vnode.type);
+          // 设置属性
+          if (vnode.props) {
+            for (const key in vnode.props) {
+              patchProps(el, key, null, vnode.props[key]);
+            }
+          }
+
+          if (typeof vnode.children === 'string') {
+            setElementText(el, vnode.children);
+          } else if (Array.isArray(vnode.children)) {
+            vnode.children.forEach((child) => {
+              patch(null, child, el);
+            });
+          }
+          insert(el, container);
+        }
+
+        function patch(oldVnode, newVnode, container) {
+          if (!oldVnode) {
+            // 如果没有旧的vnode将执行初次挂载
+            mountElement(newVnode, container);
+          } else {
+            // 更新 打补丁
+          }
+        }
+        function render(vnode, container) {
+          if (vnode) {
+            patch(container._vnode, vnode, container);
+          } else {
+            if (container._vnode) {
+              container.innerHTML = '';
+            }
+          }
+          container._vnode = vnode;
+        }
+        return {
+          render,
+        };
+      }
+
+      const vnode = {
+        type: 'div',
+        props: {
+          id: 'foo',
+        },
+        children: [
+          {
+            type: 'p',
+            children: 'hello, vue',
+          },
+          {
+            type: 'button',
+            children: 'click me',
+            props: {
+              disabled: false,
+            },
+          },
+        ],
+      };
+      const renderer = createRenderer({
+        // 用于创建元素
+        createElement(tag) {
+          return document.createElement(tag);
+        },
+        // 用于设置元素的文本节点
+        setElementText(el, text) {
+          el.textContent = text;
+        },
+        // 用于在给定的父节点下添加指定元素
+        insert(el, parent, anchor = null) {
+          parent.insertBefore(el, anchor);
+        },
+        patchProps(el, key, prevValue, nextValue) {
+          if (shouldSetAsProps(el, key, nextValue)) {
+            const type = typeof el[key];
+            if (type === 'boolean' && nextValue === '') {
+              el[key] = true;
+            } else {
+              el[key] = nextValue;
+            }
+          } else {
+            el.setAttribute(key, nextValue);
+          }
+        },
+      });
+      renderer.render(vnode, document.querySelector('#app'));
+    </script>
+  </body>
+</html>
