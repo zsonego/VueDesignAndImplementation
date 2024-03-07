@@ -16,13 +16,23 @@
         if (key === 'form' && el.tagName === 'INPUT') return false;
         return key in el;
       }
+      // 封装的卸载函数
+      function unmount(vnode) {
+        // 拿到父节点 调用删除
+        let parent = vnode.el.parentNode;
+        if (parent) {
+          parent.removeChild(vnode.el);
+        }
+      }
 
       function createRenderer(options) {
         const { createElement, insert, setElementText, patchProps } = options;
 
+        // vnode 虚拟dom  container 容器
+        // 挂载虚拟dom的方法
         function mountElement(vnode, container) {
-          const el = createElement(vnode.type);
-          // 设置属性
+          const el = (vnode.el = createElement(vnode.type));
+          // 如果存在属性 就遍历属性
           if (vnode.props) {
             for (const key in vnode.props) {
               patchProps(el, key, null, vnode.props[key]);
@@ -39,20 +49,42 @@
           insert(el, container);
         }
 
+        function patchElement(oldVnode, newVnode) {}
+        // 传入新旧虚拟dom 跟容器
         function patch(oldVnode, newVnode, container) {
+          // 如果存在旧的虚拟dom并且旧的虚拟dom类型跟新的类型不同
+          // 卸载旧的虚拟dom 并置空旧的虚拟dom
+          if (oldVnode && oldVnode.type !== newVnode.type) {
+            unmount(oldVnode);
+            oldVnode = null;
+          }
+
           if (!oldVnode) {
             // 如果没有旧的vnode将执行初次挂载
+            // 传入新的虚拟dom 容器
             mountElement(newVnode, container);
           } else {
             // 更新 打补丁
+            patchElement(oldVnode, newVnode);
           }
         }
+        // vnode 虚拟dom
+        // container 挂载的容器
+        // 如果vnode有值 container._vnode没值 表示初始化渲染
+        // 如果vnode没值 container._vnode有值 表示卸载
+        // 如果vnode有值 container._vnode有值 表示更新
         function render(vnode, container) {
           if (vnode) {
+            // 如果虚拟dom存在 调用patch函数
+            // container._vnode表示旧的虚拟dom vnode表示新的虚拟dom
             patch(container._vnode, vnode, container);
           } else {
             if (container._vnode) {
-              container.innerHTML = '';
+              // 卸载
+              // 卸载传递的参数是旧的虚拟dom
+              // unmount函数中将拿到旧虚拟dom父节点
+              // 然后通过父节点将旧虚拟dom移除
+              unmount(container._vnode);
             }
           }
           container._vnode = vnode;
@@ -77,6 +109,14 @@
             children: 'click me',
             props: {
               disabled: false,
+              onClick: [
+                () => {
+                  console.log('hello');
+                },
+                () => {
+                  console.log('world');
+                },
+              ],
             },
           },
         ],
@@ -95,7 +135,30 @@
           parent.insertBefore(el, anchor);
         },
         patchProps(el, key, prevValue, nextValue) {
-          if (shouldSetAsProps(el, key, nextValue)) {
+          if (/^on/.test(key)) {
+            const name = key.slice(2).toLowerCase();
+            let invokers = el._vei || (el._vei = {});
+            let invoker = invokers[key];
+            if (nextValue) {
+              if (!invoker) {
+                invoker = el._vei[key] = (e) => {
+                  if (Array.isArray(invoker.value)) {
+                    invoker.value.forEach((fn) => fn(e));
+                  } else {
+                    invoker.value(e);
+                  }
+                };
+                invoker.value = nextValue;
+                el.addEventListener(name, invoker);
+              } else {
+                invoker.value = nextValue;
+              }
+            } else if (invoker) {
+              el.removeEventListener(name, invoker);
+            }
+          } else if (key === 'class') {
+            el.className = nextValue || '';
+          } else if (shouldSetAsProps(el, key, nextValue)) {
             const type = typeof el[key];
             if (type === 'boolean' && nextValue === '') {
               el[key] = true;
