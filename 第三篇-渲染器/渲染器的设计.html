@@ -49,7 +49,51 @@
           insert(el, container);
         }
 
-        function patchElement(oldVnode, newVnode) {}
+        function patchChildren(oldVnode, newVnode, container) {
+          if (typeof newVnode.children === 'string') {
+            // 新vnode是文本节点
+            if (Array.isArray(oldVnode.children)) {
+              // 新vnode是文本节点 旧vnode是数组 那么需要卸载全部旧vnode
+              oldVnode.children.forEach((c) => unmount(c));
+            }
+            setElementText(container, newVnode.children);
+          } else if (Array.isArray(newVnode.children)) {
+            // 新vnode是数组
+            if (Array.isArray(oldVnode.children)) {
+              // 新旧都是数组  *****核心的算法******
+              oldVnode.children.forEach((c) => unmount(c));
+              newVnode.children.forEach((c) => patch(null, c, container));
+            } else {
+              // 旧vnode要么是文本节点 要么是空
+              setElementText(container, '');
+              newVnode.children.forEach((c) => patch(null, c, container));
+            }
+          } else {
+            // 新vnode是空
+            if (Array.isArray(oldVnode.children)) {
+              oldVnode.children.forEach((c) => unmount(c));
+            } else if (typeof oldVnode.children === 'string') {
+              setElementText(container, '');
+            }
+          }
+        }
+
+        function patchElement(oldVnode, newVnode) {
+          const el = (newVnode.el = oldVnode.el);
+          const oldProps = oldVnode.props;
+          const newProps = newVnode.props;
+          for (const key in newProps) {
+            if (newProps[key] !== oldProps[key]) {
+              patchProps(el, key, oldProps[key], newProps[key]);
+            }
+          }
+          for (const key in oldProps) {
+            if (!(key in newProps)) {
+              patchProps(el, key, oldProps[key], null);
+            }
+          }
+          patchChildren(oldVnode, newVnode, el);
+        }
         // 传入新旧虚拟dom 跟容器
         function patch(oldVnode, newVnode, container) {
           // 如果存在旧的虚拟dom并且旧的虚拟dom类型跟新的类型不同
@@ -59,13 +103,21 @@
             oldVnode = null;
           }
 
-          if (!oldVnode) {
-            // 如果没有旧的vnode将执行初次挂载
-            // 传入新的虚拟dom 容器
-            mountElement(newVnode, container);
+          const { type } = newVnode;
+          if (typeof type === 'string') {
+            // 普通标签
+            if (!oldVnode) {
+              // 如果没有旧的vnode将执行初次挂载
+              // 传入新的虚拟dom 容器
+              mountElement(newVnode, container);
+            } else {
+              // 更新 打补丁
+              patchElement(oldVnode, newVnode);
+            }
+          } else if (typeof type === 'object') {
+            // 组件
           } else {
-            // 更新 打补丁
-            patchElement(oldVnode, newVnode);
+            // 其他类型
           }
         }
         // vnode 虚拟dom
@@ -142,6 +194,7 @@
             if (nextValue) {
               if (!invoker) {
                 invoker = el._vei[key] = (e) => {
+                  if (e.timeStamp < invoker.attached) return;
                   if (Array.isArray(invoker.value)) {
                     invoker.value.forEach((fn) => fn(e));
                   } else {
@@ -149,6 +202,7 @@
                   }
                 };
                 invoker.value = nextValue;
+                invoker.attached = performance.now();
                 el.addEventListener(name, invoker);
               } else {
                 invoker.value = nextValue;
